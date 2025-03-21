@@ -23,8 +23,11 @@ jobs:
           run: pip install ruff
 
         # Runf Ruff
+        - name: Run Ruff Format
+          run: ruff format .
+
         - name: Run Ruff Fix
-          run: ruff --fix . --ignore=F841,E712 --line-length=120
+          run: ruff check . --fix --ignore=F841,E712 --line-length=120
   
         - name: Run Ruff Format
           run: ruff format .
