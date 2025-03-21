@@ -5,7 +5,11 @@ from loguru import logger
 
 from pragmatiq.broker.redis_broker import RedisBroker
 from pragmatiq.core.task import Task
-from pragmatiq.metrics.settings import TASK_STATE_PENDING, TASKS_DEQUEUED, TASKS_ENQUEUED
+from pragmatiq.metrics.settings import (
+    TASK_STATE_PENDING,
+    TASKS_DEQUEUED,
+    TASKS_ENQUEUED,
+)
 from pragmatiq.types import R
 
 

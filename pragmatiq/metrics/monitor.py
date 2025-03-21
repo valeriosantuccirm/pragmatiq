@@ -229,7 +229,9 @@ class Monitor:
             "lookback": lookback,
         }
         if tags:
-            params["tags"] = str(tags).replace("'", '"')  # Jaeger expects JSON-like string
+            params["tags"] = str(tags).replace(
+                "'", '"'
+            )  # Jaeger expects JSON-like string
         return await self._request(
             method="GET",
             url=url,
@@ -251,7 +253,9 @@ class Monitor:
         )
         return response.get("data", [])
 
-    async def get_jaeger_dependencies(self, lookback: str = "24h") -> List[Dict[str, Any]]:
+    async def get_jaeger_dependencies(
+        self, lookback: str = "24h"
+    ) -> List[Dict[str, Any]]:
         """Fetch service dependencies from Jaeger.
 
         Args:
