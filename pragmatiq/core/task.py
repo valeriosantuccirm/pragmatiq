@@ -97,7 +97,8 @@ class Task:
         """
         logger.debug("Task: running task...")
         with global_tracer().start_active_span(
-            operation_name=f"execute_task.{self.func.__name__}", tags={"cpu_bound": self.cpu_bound}
+            operation_name=f"execute_task.{self.func.__name__}",
+            tags={"cpu_bound": self.cpu_bound},
         ) as scope:
             try:
                 self.state = TaskState.RUNNING
@@ -118,7 +119,9 @@ class Task:
                     TASK_DURATION.observe(amount=duration)
 
                 self.state = TaskState.COMPLETED
-                logger.debug(f"Task: task completed; storing result of: {self.func.__name__}")
+                logger.debug(
+                    f"Task: task completed; storing result of: {self.func.__name__}"
+                )
                 await self.store_result(
                     result=result,
                     error=None,

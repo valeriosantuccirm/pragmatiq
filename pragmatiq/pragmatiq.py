@@ -5,7 +5,17 @@ from asyncio import Task as asyncioTask
 from contextlib import asynccontextmanager
 from functools import wraps
 from types import CoroutineType
-from typing import Any, AsyncGenerator, Callable, Dict, Literal, Optional, Self, Type, TypeVar
+from typing import (
+    Any,
+    AsyncGenerator,
+    Callable,
+    Dict,
+    Literal,
+    Optional,
+    Self,
+    Type,
+    TypeVar,
+)
 
 import ray
 from jaeger_client.config import Config
@@ -295,7 +305,9 @@ class Pragmatiq:
         priority: int = 1,
         timeout: int = 30,
         **kwargs: Any,
-    ) -> Callable[[Callable[..., Any]], Callable[..., "CoroutineType[Any, Any, Dict[str, str]]"]]:
+    ) -> Callable[
+        [Callable[..., Any]], Callable[..., "CoroutineType[Any, Any, Dict[str, str]]"]
+    ]:
         """Decorate a function to enqueue it as a task.
 
         Registers the function in the function mapping and returns a wrapper that enqueues it as a task
@@ -313,7 +325,9 @@ class Pragmatiq:
             NotImplementedError: If `type_` is "cpu" (CPU tasks are not yet implemented).
         """
 
-        def decorator(func: Callable[..., R]) -> Callable[..., "CoroutineType[Any, Any, Dict[str, str]]"]:
+        def decorator(
+            func: Callable[..., R],
+        ) -> Callable[..., "CoroutineType[Any, Any, Dict[str, str]]"]:
             self.func_mapping[func.__name__] = func
             logger.debug(f"PragmatiQ: mapped func: {func.__name__}")
 
@@ -329,15 +343,21 @@ class Pragmatiq:
                     **kwargs,
                 )
                 if self.tracer:
-                    with self.tracer.start_active_span(operation_name=f"enqueue_{type_}_task.{func.__name__}") as scope:
+                    with self.tracer.start_active_span(
+                        operation_name=f"enqueue_{type_}_task.{func.__name__}"
+                    ) as scope:
                         scope.span.set_tag(key="priority", value=priority)
                         scope.span.set_tag(key="timeout", value=timeout)
                         scope.span.set_tag(key="function", value=func.__name__)
                         await self.queue.enqueue(task=task)
-                        logger.debug(f"PragmatiQ: enqueued with tracer func: {func.__name__}")
+                        logger.debug(
+                            f"PragmatiQ: enqueued with tracer func: {func.__name__}"
+                        )
                 else:
                     await self.queue.enqueue(task=task)
-                    logger.debug(f"PragmatiQ: enqueued without tracer func: {func.__name__}")
+                    logger.debug(
+                        f"PragmatiQ: enqueued without tracer func: {func.__name__}"
+                    )
                 return {
                     "message": f"{type_.upper()} task enqueued",
                     "task_id": task.task_id,
