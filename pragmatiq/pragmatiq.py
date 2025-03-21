@@ -76,7 +76,7 @@ class Pragmatiq:
         ```
         Advanced usage with binding events to tasks:
         ```python
-        from src.core.event import Event
+        from pragmatiq.core.event import Event
 
         async def main():
             prag = Pragmatiq(config=PragmatiqConfig(redis_host="localhost", redis_port=6379))

@@ -29,7 +29,7 @@ async def mock_broker() -> Mock:
 @pytest.fixture(autouse=True)
 def mock_global_tracer() -> Generator[MagicMock | AsyncMock, Any, None]:
     """Fixture mocking the global_tracer for tracing operations."""
-    with patch("src.core.task.global_tracer") as mock_tracer:
+    with patch("pragmatiq.core.task.global_tracer") as mock_tracer:
         mock_span = MagicMock()
         mock_span.start_active_span.return_value.__enter__.return_value = mock_span
         mock_tracer.return_value = mock_span
