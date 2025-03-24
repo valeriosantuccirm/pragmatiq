@@ -17,24 +17,21 @@ jobs:
           --health-timeout=3s
           --health-retries=5
       prometheus:
-        image: prom/prometheus:v2.50.0
+        image: prom/prometheus:latest
         ports:
           - 9090:9090
         options: >-
-          --health-cmd="curl -f http://prometheus:9090/api/v1/status"
+          --health-cmd="wget -q -O- http://prometheus:9090/-/healthy"
           --health-interval=5s
           --health-timeout=3s
           --health-retries=5
+
       jaeger:
-        image: jaegertracing/all-in-one:1.49
+        image: jaegertracing/all-in-one:latest
         ports:
-          - 16686:16686
-          - 14268:14268
-        options: >-
-          --health-cmd="curl -f http://jaeger:16686"
-          --health-interval=5s
-          --health-timeout=3s
-          --health-retries=5
+          - 16686:16686  # UI
+          - 14268:14268  # HTTP collector
+          - 14250:14250  # GRPC collector
 
     steps:
       # Checkout the repository
@@ -59,6 +56,12 @@ jobs:
       #   run: |
       #     sleep 5
       #     redis-cli ping
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for all services to become available..." 
+          until redis-cli -h redis -p 6379 ping; do sleep 1; done
+          until curl -f http://prometheus:9090/-/healthy; do sleep 1; done
+          until curl -f http://jaeger:16686; do sleep 1; done
 
       # Run pytest inside the virtual environment
       - name: Run tests with pytest
