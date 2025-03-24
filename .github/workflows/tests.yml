@@ -21,7 +21,7 @@ jobs:
         ports:
           - 9090:9090
         options: >-
-          --health-cmd="curl -f http://localhost:9090/api/v1/status"
+          --health-cmd="curl -f http://prometheus:9090/api/v1/status"
           --health-interval=5s
           --health-timeout=3s
           --health-retries=5
@@ -31,7 +31,7 @@ jobs:
           - 16686:16686
           - 14268:14268
         options: >-
-          --health-cmd="curl -f http://localhost:16686"
+          --health-cmd="curl -f http://jaeger:16686"
           --health-interval=5s
           --health-timeout=3s
           --health-retries=5
@@ -63,7 +63,7 @@ jobs:
       # Run pytest inside the virtual environment
       - name: Run tests with pytest
         env:
-          REDIS_URL: redis://localhost:6379/0
+          REDIS_URL: redis://redis:6379/0
         run: pipenv run pytest --maxfail=1 --disable-warnings -q
 
       # Optionally: Store test results
