@@ -5,9 +5,11 @@ on:
     branches:
       - main
       - 'feature/*'
+      - develop
   pull_request:
     branches:
       - main
+      - develop
 
 jobs:
   test:
@@ -23,6 +25,17 @@ jobs:
           --health-interval=5s
           --health-timeout=3s
           --health-retries=5
+      prometheus:
+        image: prom/prometheus:v2.50.0
+        ports:
+          - 9090:9090
+      jaeger:
+        image: jaegertracing/all-in-one:1.49
+        ports:
+          - 16686:16686
+          - 14268:14268
+        environment:
+          COLLECTOR_OTLP_ENABLED: "true" # Enable OTLP for potential future use
 
     steps:
       # Checkout the repository

@@ -22,9 +22,10 @@ from jaeger_client.config import Config
 from jaeger_client.tracer import Tracer
 from loguru import logger
 from opentracing import set_global_tracer
+from redis import RedisError
 
 from pragmatiq.broker.redis_broker import RedisBroker
-from pragmatiq.config import PragmatiqConfig
+from pragmatiq.config import PragmatiQConfig
 from pragmatiq.core.event import Event, EventManager
 from pragmatiq.core.queue import Queue
 from pragmatiq.core.task import CPUTask, IOTask
@@ -42,10 +43,10 @@ TASK_MAP: Dict[str, Type[CPUTask] | Type[IOTask]] = {
 }
 
 
-class Pragmatiq:
+class PragmatiQ:
     """A singleton class for managing asynchronous task queues and event handling with monitoring.
 
-    Pragmatiq provides a framework for enqueuing and executing CPU-bound and I/O-bound tasks
+    PragmatiQ provides a framework for enqueuing and executing CPU-bound and I/O-bound tasks
     using a Redis-backed queue, alongside an event management system for dispatching and
     handling events. It integrates Prometheus for metrics and Jaeger for tracing, enabling
     comprehensive monitoring of task execution and event processing. The class operates
@@ -54,10 +55,10 @@ class Pragmatiq:
 
     Attributes:
         __initialized (bool): Internal flag to prevent re-initialization of the singleton.
-        _instance (Optional[Pragmatiq]): The singleton instance of the class.
+        _instance (Optional[PragmatiQ]): The singleton instance of the class.
         tracer (Optional[Tracer]): Jaeger tracer for distributed tracing, initialized on start.
         running (bool): Indicates whether the queue and background tasks are active.
-        config (PragmatiqConfig): Configuration object with settings for Redis, Prometheus, etc.
+        config (PragmatiQConfig): Configuration object with settings for Redis, Prometheus, etc.
         queue (Queue): Redis-backed task queue for managing task execution.
         event_manager (EventManager): Manager for registering and dispatching events.
         loop (AbstractEventLoop): The asyncio event loop used for task scheduling.
@@ -68,7 +69,7 @@ class Pragmatiq:
         Basic task and event setup:
         ```python
         async def main():
-            prag = Pragmatiq()
+            prag = PragmatiQ()
             @prag.collector("io")
             async def io_task(data: str) -> str:
                 return f"Processed {data}"
@@ -89,7 +90,7 @@ class Pragmatiq:
         from pragmatiq.core.event import Event
 
         async def main():
-            prag = Pragmatiq(config=PragmatiqConfig(redis_host="localhost", redis_port=6379))
+            prag = PragmatiQ(config=PragmatiQConfig(redis_host="localhost", redis_port=6379))
 
             async def process_data(data: str) -> str:
                 return f"Processed {data}"
@@ -113,7 +114,7 @@ class Pragmatiq:
     """
 
     __initialized: bool = False
-    _instance: Optional["Pragmatiq"] = None
+    _instance: Optional["PragmatiQ"] = None
     tracer: Tracer | None = None
     running: bool = False
 
@@ -121,19 +122,19 @@ class Pragmatiq:
         cls,
         *args: Any,
         **kwargs: Any,
-    ) -> Self | "Pragmatiq":
-        """Create or return the singleton instance of Pragmatiq.
+    ) -> Self | "PragmatiQ":
+        """Create or return the singleton instance of PragmatiQ.
 
-        Ensures that only one instance of Pragmatiq exists throughout the application lifecycle.
+        Ensures that only one instance of PragmatiQ exists throughout the application lifecycle.
         If an instance does not exist, it creates one; otherwise, it returns the existing instance.
 
         Args:
-            cls: The class object (Pragmatiq).
+            cls: The class object (PragmatiQ).
             *args: Variable positional arguments (ignored if instance exists).
             **kwargs: Variable keyword arguments (ignored if instance exists).
 
         Returns:
-            Pragmatiq: The singleton instance of the Pragmatiq class.
+            PragmatiQ: The singleton instance of the PragmatiQ class.
         """
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -142,20 +143,20 @@ class Pragmatiq:
 
     def __init__(
         self,
-        config: Optional[PragmatiqConfig] = None,
+        config: Optional[PragmatiQConfig] = None,
     ) -> None:
-        """Initialize the Pragmatiq instance with configuration.
+        """Initialize the PragmatiQ instance with configuration.
 
         Sets up the task queue, event manager, event loop, process pool, and function mapping.
         This method is only executed once for the singleton instance, subsequent calls are no-ops.
 
         Args:
-            config: Optional configuration object; defaults to a new PragmatiqConfig if None.
+            config: Optional configuration object; defaults to a new PragmatiQConfig if None.
         """
         if self.__initialized:
             return
         self.__initialized = True
-        self.config: PragmatiqConfig = config or PragmatiqConfig()
+        self.config: PragmatiQConfig = config or PragmatiQConfig()
         self.broker = RedisBroker(
             host=self.config.redis_host,
             port=self.config.redis_port,
@@ -169,30 +170,30 @@ class Pragmatiq:
         self.func_mapping: Dict[str, Callable[..., Any]] = {}
 
     @classmethod
-    def get_instance(cls) -> "Pragmatiq":
-        """Retrieve the singleton instance of Pragmatiq.
+    def get_instance(cls) -> "PragmatiQ":
+        """Retrieve the singleton instance of PragmatiQ.
 
-        Provides access to the initialized Pragmatiq instance for use across the application.
+        Provides access to the initialized PragmatiQ instance for use across the application.
 
         Returns:
-            Pragmatiq: The singleton instance of Pragmatiq.
+            PragmatiQ: The singleton instance of PragmatiQ.
 
         Raises:
-            RuntimeError: If Pragmatiq has not been initialized prior to calling this method.
+            RuntimeError: If PragmatiQ has not been initialized prior to calling this method.
         """
         if cls._instance is None:
-            raise RuntimeError("Pragmatiq not initialized")
+            raise RuntimeError("PragmatiQ not initialized")
         return cls._instance
 
     @asynccontextmanager
     async def lifespan(self) -> AsyncGenerator[None, Any]:
-        """Manage the lifecycle of Pragmatiq asynchronously.
+        """Manage the lifecycle of PragmatiQ asynchronously.
 
         Starts the queue and background tasks upon entry and shuts them down upon exit.
-        This context manager ensures proper resource management for the Pragmatiq instance.
+        This context manager ensures proper resource management for the PragmatiQ instance.
 
         Yields:
-            None: Allows the caller to execute code while Pragmatiq is running.
+            None: Allows the caller to execute code while PragmatiQ is running.
 
         Raises:
             Exception: Propagates any exception that occurs during startup or shutdown.
@@ -235,7 +236,7 @@ class Pragmatiq:
             return tracer
 
     async def _start(self) -> None:
-        """Start the Pragmatiq queue and background tasks.
+        """Start the PragmatiQ queue and background tasks.
 
         Initializes Prometheus metrics, Jaeger tracing, and launches tasks for queue processing
         and queue length monitoring. This method is idempotent and only executes if not already running.
@@ -261,7 +262,7 @@ class Pragmatiq:
         )
 
     async def _shutdown(self) -> None:
-        """Shut down the Pragmatiq queue and background tasks.
+        """Shut down the PragmatiQ queue and background tasks.
 
         Stops the queue, cancels background tasks, shuts down the process pool, and closes the Redis connection.
         This method is idempotent and only executes if currently running.
@@ -279,13 +280,13 @@ class Pragmatiq:
             self._queue_task.cancel()
             try:
                 await self._queue_task
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, RedisError):
                 pass
         if hasattr(self, "_queue_length_task"):
             self._queue_length_task.cancel()
             try:
                 await self._queue_length_task
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, RedisError):
                 pass
 
     async def _update_queue_length_task(self) -> None:
@@ -305,9 +306,7 @@ class Pragmatiq:
         priority: int = 1,
         timeout: int = 30,
         **kwargs: Any,
-    ) -> Callable[
-        [Callable[..., Any]], Callable[..., "CoroutineType[Any, Any, Dict[str, str]]"]
-    ]:
+    ) -> Callable[[Callable[..., Any]], Callable[..., "CoroutineType[Any, Any, Dict[str, str]]"]]:
         """Decorate a function to enqueue it as a task.
 
         Registers the function in the function mapping and returns a wrapper that enqueues it as a task
@@ -343,21 +342,15 @@ class Pragmatiq:
                     **kwargs,
                 )
                 if self.tracer:
-                    with self.tracer.start_active_span(
-                        operation_name=f"enqueue_{type_}_task.{func.__name__}"
-                    ) as scope:
+                    with self.tracer.start_active_span(operation_name=f"enqueue_{type_}_task.{func.__name__}") as scope:
                         scope.span.set_tag(key="priority", value=priority)
                         scope.span.set_tag(key="timeout", value=timeout)
                         scope.span.set_tag(key="function", value=func.__name__)
                         await self.queue.enqueue(task=task)
-                        logger.debug(
-                            f"PragmatiQ: enqueued with tracer func: {func.__name__}"
-                        )
+                        logger.debug(f"PragmatiQ: enqueued with tracer func: {func.__name__}")
                 else:
                     await self.queue.enqueue(task=task)
-                    logger.debug(
-                        f"PragmatiQ: enqueued without tracer func: {func.__name__}"
-                    )
+                    logger.debug(f"PragmatiQ: enqueued without tracer func: {func.__name__}")
                 return {
                     "message": f"{type_.upper()} task enqueued",
                     "task_id": task.task_id,
