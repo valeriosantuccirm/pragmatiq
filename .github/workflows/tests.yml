@@ -1,15 +1,6 @@
 name: Test with Redis and Pytest
 
-on:
-  push:
-    branches:
-      - main
-      - 'feature/*'
-      - develop
-  pull_request:
-    branches:
-      - main
-      - develop
+on: [push, pull_request]
 
 jobs:
   test:
