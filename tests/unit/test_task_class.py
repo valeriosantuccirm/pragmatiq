@@ -143,7 +143,9 @@ async def test_run_success(
         # Fix assertion: Ensure these values are greater than or equal to 1
         assert TASK_STATE_RUNNING._value._value >= 1
         assert CPU_BOUND_TASKS_TOTAL._value._value >= 1
-        assert CPU_BOUND_TASK_DURATION._sum._value >= 0  # Duration might be 0 for fast tasks
+        assert (
+            CPU_BOUND_TASK_DURATION._sum._value >= 0
+        )  # Duration might be 0 for fast tasks
         assert TASK_STATE_COMPLETED._value._value >= 1
 
         mock_broker.store_result.assert_awaited_once()

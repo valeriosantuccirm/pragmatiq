@@ -158,7 +158,9 @@ async def test_monitor_query_prometheus_success(
         },
     }
     mock_session = AsyncMock(spec=ClientSession)
-    mock_session.request.return_value.__aenter__.return_value.json = AsyncMock(return_value=mock_response)
+    mock_session.request.return_value.__aenter__.return_value.json = AsyncMock(
+        return_value=mock_response
+    )
     mocker.patch.object(
         target=aiohttp,
         attribute="ClientSession",
@@ -228,7 +230,9 @@ async def test_monitor_request_post_json_success(
         },
     }
     mock_session = AsyncMock(spec=ClientSession)
-    mock_session.request.return_value.__aenter__.return_value.json = AsyncMock(return_value=mock_response)
+    mock_session.request.return_value.__aenter__.return_value.json = AsyncMock(
+        return_value=mock_response
+    )
     mocker.patch.object(
         target=aiohttp,
         attribute="ClientSession",
@@ -248,7 +252,9 @@ async def test_monitor_request_post_json_success(
 @pytest.mark.asyncio
 async def test_monitor_query_missing_base_url_fail() -> None:
     """Test failing case: Query with unconfigured client (no host/port)."""
-    config = PragmatiQConfig(service_name="test_service")  # No prometheus/jaeger host/port
+    config = PragmatiQConfig(
+        service_name="test_service"
+    )  # No prometheus/jaeger host/port
     monitor = Monitor(config=config)
     async with monitor:
         with pytest.raises(

@@ -60,14 +60,18 @@ async def test_monitor_query_prometheus_auth_integration(
         }
     )
     mock_session = AsyncMock(spec=ClientSession)
-    mock_session.request.return_value.__aenter__.return_value.json = AsyncMock(side_effect=raise_exc)
+    mock_session.request.return_value.__aenter__.return_value.json = AsyncMock(
+        side_effect=raise_exc
+    )
     mocker.patch.object(
         target=aiohttp,
         attribute="ClientSession",
         return_value=mock_session,
     )
     monitor = Monitor(config=config)
-    with pytest.raises(expected_exception=Exception):  # Expecting a connection error due to no auth server
+    with pytest.raises(
+        expected_exception=Exception
+    ):  # Expecting a connection error due to no auth server
         async with monitor:
             await monitor.query(
                 client="prometheus",
@@ -98,7 +102,9 @@ async def test_auth_success_mocked(
     with patch("aiohttp.ClientSession.request") as mock_request:
         # Mock successful response
         mock_request.return_value.__aenter__.return_value.status = 200
-        mock_request.return_value.__aenter__.return_value.json.return_value = {"status": "success"}
+        mock_request.return_value.__aenter__.return_value.json.return_value = {
+            "status": "success"
+        }
 
         async with Monitor(config=config) as monitor:
             response: Dict[str, Any] = await monitor.query(

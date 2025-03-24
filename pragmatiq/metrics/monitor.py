@@ -38,8 +38,12 @@ class _MonitorConfig:
         self.prometheus_port: int | None = prometheus_port
         self.jaeger_host: str | None = jaeger_host
         self.jaeger_port: int | None = jaeger_port
-        self.prometheus_auth: BasicAuth | None = BasicAuth(*prometheus_auth) if prometheus_auth else None
-        self.jaeger_auth: BasicAuth | None = BasicAuth(*jaeger_auth) if jaeger_auth else None
+        self.prometheus_auth: BasicAuth | None = (
+            BasicAuth(*prometheus_auth) if prometheus_auth else None
+        )
+        self.jaeger_auth: BasicAuth | None = (
+            BasicAuth(*jaeger_auth) if jaeger_auth else None
+        )
 
     @property
     def prometheus_base_url(self) -> str | None:
@@ -340,7 +344,9 @@ class Monitor:
         """
         base_url, auth = self.monitor_config.mapped_params(client=client)
         params["service"] = self.monitor_config.service
-        api_endpoint = api_endpoint[1:] if api_endpoint.startswith("/") else api_endpoint
+        api_endpoint = (
+            api_endpoint[1:] if api_endpoint.startswith("/") else api_endpoint
+        )
         return await self.__request(
             method=method,
             url=f"{base_url}/{api_endpoint}",
