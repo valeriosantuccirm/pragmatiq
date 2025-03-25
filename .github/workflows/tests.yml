@@ -69,7 +69,9 @@ jobs:
       - name: Run tests with pytest
         env:
           REDIS_URL: redis://localhost:6379/0
-        run: poetry run pytest --maxfail=1 --disable-warnings -q
+        run: |
+          source $(poetry env info --path)/bin/activate
+          pytest --maxfail=1 --disable-warnings -q
 
       # Optionally: Store test results
       # - name: Upload test results
