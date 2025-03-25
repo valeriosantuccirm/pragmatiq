@@ -1,4 +1,3 @@
-import os
 from typing import Any, Dict, Generator, Tuple, Type
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
@@ -52,17 +51,12 @@ def pragmatiq_config(
     default_config: PragmatiQConfig,
 ) -> Generator[PragmatiQConfig, Any, None]:
     """Provide a customized PragmatiQConfig instance with test-specific settings."""
-    generic_host: str = "localhost"
-    is_gh_actions: bool = os.getenv(key="GITHUB_ACTIONS") == "true"
-    # Detect if running in GitHub Actions
-    generic_host_map: Dict[str, str] = {
-        "redis_host": "redis" if is_gh_actions else generic_host,
-        "prometheus_host": "prometheus" if is_gh_actions else generic_host,
-        "jaeger_host": "jaeger" if is_gh_actions else generic_host,
-    }
+    local_host: str = "localhost"
     generic_auth: Tuple[str, str] = ("test_user", "test_pswd")
     params: Dict[str, Any] = {
-        **generic_host_map,
+        "redis_host": local_host,
+        "prometheus_host": local_host,
+        "jaeger_host": local_host,
         "redis_port": 6379,
         "prometheus_port": 9090,
         "jaeger_port": 16686,
