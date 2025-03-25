@@ -55,18 +55,13 @@ jobs:
         run: |
           poetry install
 
-      # Wait for Redis to be ready -> TODO: integrate when needed
-      # - name: Check Redis is running
-      #   run: |
-      #     sleep 5
-      #     redis-cli ping
-      - name: Install Redis CLI
-        run: sudo apt-get update && sudo apt-get install -y redis-tools
+      # - name: Install Redis CLI
+      #   run: sudo apt-get update && sudo apt-get install -y redis-tools
 
       - name: Wait for services to be ready
         run: |
           echo "Waiting for all services to become available..." 
-          until redis-cli -h redis -p 6379 ping; do sleep 1; done
+          # until redis-cli -h redis -p 6379 ping; do sleep 1; done
           until curl -f http://prometheus:9090/-/healthy; do sleep 1; done
           until curl -f http://jaeger:16686; do sleep 1; done
 
