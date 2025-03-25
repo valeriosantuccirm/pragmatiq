@@ -13,6 +13,9 @@ redis = "*"
 msgpack = "*"
 loguru = "*"
 ray = "*"
+opentelemetry-api = "^1.31.1"
+opentelemetry-sdk = "^1.31.1"
+opentelemetry-exporter-jaeger = "^1.21.0"
 
 [poetry.group.dev.dependencies]
 ruff = "*"

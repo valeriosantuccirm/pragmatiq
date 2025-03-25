@@ -18,10 +18,10 @@ from typing import (
 )
 
 import ray
-from jaeger_client.config import Config
-from jaeger_client.tracer import Tracer
 from loguru import logger
-from opentracing import set_global_tracer
+from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.trace import Tracer, get_tracer
 from redis import RedisError
 
 from pragmatiq.broker.redis_broker import RedisBroker
@@ -30,6 +30,7 @@ from pragmatiq.core.event import Event, EventManager
 from pragmatiq.core.queue import Queue
 from pragmatiq.core.task import CPUTask, IOTask
 from pragmatiq.metrics.settings import start_prometheus, update_task_queue_length
+from pragmatiq.tracer import trace_provider
 from pragmatiq.types import R
 
 T = TypeVar("T", bound=Event)
@@ -207,7 +208,6 @@ class PragmatiQ:
 
     def _init_tracer(
         self,
-        service_name: str,
     ) -> Tracer | None:
         """Initialize the Jaeger tracer for distributed tracing.
 
@@ -219,21 +219,22 @@ class PragmatiQ:
         Returns:
             Tracer | None: The initialized Jaeger tracer, or None if initialization fails.
         """
-        config = Config(
-            config={
-                "sampler": {
-                    "type": "const",
-                    "param": 1,
-                },
-                "logging": True,
-            },
-            service_name=service_name,
-            validate=True,
+        # Configure Jaeger exporter
+        jaeger_exporter = JaegerExporter(
+            agent_host_name=self.config.jaeger_host,
+            agent_port=self.config.jaeger_port,
         )
-        tracer: Tracer | None = config.initialize_tracer()
-        if tracer:
-            set_global_tracer(value=tracer)  # Set as global tracer
-            return tracer
+        # Add span processor explicitly to the provider instance
+        trace_provider.add_span_processor(
+            span_processor=BatchSpanProcessor(
+                span_exporter=jaeger_exporter,
+            ),
+        )
+        # Get tracer instance
+        tracer: Tracer = get_tracer(
+            instrumenting_module_name="pragmatiq",
+        )
+        return tracer
 
     async def _start(self) -> None:
         """Start the PragmatiQ queue and background tasks.
@@ -250,7 +251,7 @@ class PragmatiQ:
 
         start_prometheus(port=self.config.prometheus_port)
         if not self.tracer:
-            self.tracer = self._init_tracer(service_name=self.config.service_name)
+            self.tracer = self._init_tracer()
         self._queue_task: asyncioTask[None] = asyncio.create_task(
             coro=self.queue.run_tasks(
                 loop=self.loop,
@@ -306,9 +307,7 @@ class PragmatiQ:
         priority: int = 1,
         timeout: int = 30,
         **kwargs: Any,
-    ) -> Callable[
-        [Callable[..., Any]], Callable[..., "CoroutineType[Any, Any, Dict[str, str]]"]
-    ]:
+    ) -> Callable[[Callable[..., Any]], Callable[..., "CoroutineType[Any, Any, Dict[str, str]]"]]:
         """Decorate a function to enqueue it as a task.
 
         Registers the function in the function mapping and returns a wrapper that enqueues it as a task
@@ -344,21 +343,15 @@ class PragmatiQ:
                     **kwargs,
                 )
                 if self.tracer:
-                    with self.tracer.start_active_span(
-                        operation_name=f"enqueue_{type_}_task.{func.__name__}"
-                    ) as scope:
-                        scope.span.set_tag(key="priority", value=priority)
-                        scope.span.set_tag(key="timeout", value=timeout)
-                        scope.span.set_tag(key="function", value=func.__name__)
+                    with self.tracer.start_span(name=f"enqueue_{type_}_task.{func.__name__}") as scope:
+                        scope.set_attribute(key="priority", value=priority)
+                        scope.set_attribute(key="timeout", value=timeout)
+                        scope.set_attribute(key="function", value=func.__name__)
                         await self.queue.enqueue(task=task)
-                        logger.debug(
-                            f"PragmatiQ: enqueued with tracer func: {func.__name__}"
-                        )
+                        logger.debug(f"PragmatiQ: enqueued with tracer func: {func.__name__}")
                 else:
                     await self.queue.enqueue(task=task)
-                    logger.debug(
-                        f"PragmatiQ: enqueued without tracer func: {func.__name__}"
-                    )
+                    logger.debug(f"PragmatiQ: enqueued without tracer func: {func.__name__}")
                 return {
                     "message": f"{type_.upper()} task enqueued",
                     "task_id": task.task_id,

@@ -19,8 +19,8 @@ async def mock_broker() -> Mock:
 
 @pytest.fixture(autouse=True)
 def mock_global_tracer() -> Generator[MagicMock | AsyncMock, Any, None]:
-    """Mock the global_tracer for Jaeger tracing in all tests."""
-    with patch("pragmatiq.core.task.global_tracer") as mock_tracer:
+    """Mock the get_tracer for Jaeger tracing in all tests."""
+    with patch("pragmatiq.core.task.get_tracer") as mock_tracer:
         mock_span: MagicMock = MagicMock()
         mock_span.start_active_span.return_value.__enter__.return_value = mock_span
         mock_tracer.return_value = mock_span
