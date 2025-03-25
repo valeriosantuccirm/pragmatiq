@@ -43,18 +43,7 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: '3.12.0'
-
-      # Install Poetry
-      - name: Install Poetry
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          export PATH="$HOME/.local/bin:$PATH"
-      
-      # Install dependencies using Poetry
-      - name: Install dependencies
-        run: |
-          poetry install
-
+        
       # - name: Install Redis CLI
       #   run: sudo apt-get update && sudo apt-get install -y redis-tools
 
@@ -65,12 +54,23 @@ jobs:
           until curl -f http://localhost:9090/-/healthy; do sleep 1; done
           until curl -f http://localhost:16686; do sleep 1; done
 
+      # Install Poetry
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          export PATH="$HOME/.local/bin:$PATH"
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      
+      # Install dependencies using Poetry
+      - name: Install dependencies
+        run: |
+          poetry install --with dev
+
       # Run pytest inside the virtual environment
       - name: Run tests with pytest
         # env:
         #   REDIS_URL: redis://localhost:6379/0
         run: |
-          source $(poetry env info --path)/bin/activate
           poetry run pytest --maxfail=1 --disable-warnings -q
 
       # Optionally: Store test results
