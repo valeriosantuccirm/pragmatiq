@@ -64,7 +64,7 @@ jobs:
       # Install dependencies using Poetry
       - name: Install dependencies
         run: |
-          poetry install --with dev
+          poetry install
 
       # Run pytest inside the virtual environment
       - name: Run tests with pytest
