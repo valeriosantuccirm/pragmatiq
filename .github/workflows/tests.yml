@@ -67,11 +67,11 @@ jobs:
 
       # Run pytest inside the virtual environment
       - name: Run tests with pytest
-        env:
-          REDIS_URL: redis://localhost:6379/0
+        # env:
+        #   REDIS_URL: redis://localhost:6379/0
         run: |
           source $(poetry env info --path)/bin/activate
-          pytest --maxfail=1 --disable-warnings -q
+          poetry run pytest --maxfail=1 --disable-warnings -q
 
       # Optionally: Store test results
       # - name: Upload test results
