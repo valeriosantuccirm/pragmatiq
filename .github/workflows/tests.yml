@@ -21,7 +21,7 @@ jobs:
         ports:
           - 9090:9090
         options: >-
-          --health-cmd="wget -q -O- http://prometheus:9090/-/healthy"
+          --health-cmd="wget -q -O- http://localhost:9090/-/healthy"
           --health-interval=5s
           --health-timeout=3s
           --health-retries=5
@@ -62,13 +62,13 @@ jobs:
         run: |
           echo "Waiting for all services to become available..." 
           # until redis-cli -h redis -p 6379 ping; do sleep 1; done
-          until curl -f http://prometheus:9090/-/healthy; do sleep 1; done
-          until curl -f http://jaeger:16686; do sleep 1; done
+          until curl -f http://localhost:9090/-/healthy; do sleep 1; done
+          until curl -f http://localhost:16686; do sleep 1; done
 
       # Run pytest inside the virtual environment
       - name: Run tests with pytest
         env:
-          REDIS_URL: redis://redis:6379/0
+          REDIS_URL: redis://localhost:6379/0
         run: poetry run pytest --maxfail=1 --disable-warnings -q
 
       # Optionally: Store test results
