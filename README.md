@@ -1,10 +1,10 @@
-# TODO: adjust once ready fo release!
+# TODO: adjust once ready for release!
 
-# Pragmatiq
+# PragmatiQ
 
 **Asynchronous Task Queue & Event Management with Monitoring**
 
-Pragmatiq is a Python framework for building distributed systems with Redis-backed task queues, event-driven architecture, and built-in monitoring using Prometheus and Jaeger. It supports both CPU-bound and I/O-bound workloads with priority scheduling and fault tolerance.
+PragmatiQ is a Python framework for building distributed systems with Redis-backed task queues, event-driven architecture, and built-in monitoring using Prometheus and Jaeger. It supports both CPU-bound and I/O-bound workloads with priority scheduling and fault tolerance.
 
 [![Python 3.12.0](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Redis Required](https://img.shields.io/badge/redis-%3E=5.0-red.svg)](https://redis.io/)
@@ -39,10 +39,10 @@ pip install pragmatiq # TODO: once released
 
 ```python
 import asyncio
-from pragmatiq import Pragmatiq
+from pragmatiq import PragmatiQ
 
 async def main():
-    pragmatiq = Pragmatiq()
+    pragmatiq = PragmatiQ()
     
     @pragmatiq.collector("io")
     async def process_data(data: str) -> str:
@@ -59,13 +59,13 @@ asyncio.run(main())
 
 ```python
 import asyncio
-from pragmatiq import Pragmatiq, Event
+from pragmatiq import PragmatiQ, Event
 
 class DataProcessedEvent(Event):
     pass
 
 async def main():
-    pragmatiq = Pragmatiq()
+    pragmatiq = PragmatiQ()
     
     @pragmatiq.event_handler(DataProcessedEvent)
     async def handle_processed_data(event: DataProcessedEvent):
@@ -89,12 +89,12 @@ asyncio.run(main())
 
 ## ⚙️ Configuration
 
-Customize settings using `PragmatiqConfig`:
+Customize settings using `PragmatiQConfig`:
 
 ```python
-from pragmatiq import Pragmatiq, PragmatiqConfig
+from pragmatiq import PragmatiQ, PragmatiQConfig
 
-config = PragmatiqConfig(
+config = PragmatiQConfig(
     redis_host="redis-cluster",
     redis_port=6379,
     queue_name="myapp_tasks",
@@ -103,7 +103,7 @@ config = PragmatiqConfig(
     service_name="data-processor"
 )
 
-pragmatiq = Pragmatiq(config=config)
+pragmatiq = PragmatiQ(config=config)
 ```
 
 ---

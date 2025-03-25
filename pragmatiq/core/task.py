@@ -7,7 +7,7 @@ from uuid import uuid4
 import msgpack
 import ray
 from loguru import logger
-from opentracing import global_tracer
+from opentelemetry.trace import Tracer, get_tracer
 from ray._private.worker import RemoteFunctionNoArgs
 
 from pragmatiq.enums import TaskState
@@ -57,6 +57,7 @@ class Task:
         self.task_id = str(uuid4())
         self.broker: "RedisBroker" = broker
         self.kwargs: Dict[str, Any] = kwargs
+        self.tracer: Tracer = get_tracer(instrumenting_module_name="pragmatiq")
 
     async def store_result(
         self,
@@ -96,9 +97,9 @@ class Task:
             Exception: Propagates any exception from task execution, after logging and handling failure.
         """
         logger.debug("Task: running task...")
-        with global_tracer().start_active_span(
-            operation_name=f"execute_task.{self.func.__name__}",
-            tags={"cpu_bound": self.cpu_bound},
+        with self.tracer.start_as_current_span(
+            name=f"execute_task.{self.func.__name__}",
+            attributes={"cpu_bound": self.cpu_bound},
         ) as scope:
             try:
                 self.state = TaskState.RUNNING
@@ -128,25 +129,25 @@ class Task:
                     state=self.state,
                 )
                 TASK_STATE_COMPLETED.inc()
-                scope.span.set_tag(key="state", value=self.state.value)
+                scope.set_attribute(key="state", value=self.state.value)
                 return result
 
             except Exception as e:
                 self.state = TaskState.FAILED
-                scope.span.set_tag(key="error", value=True)
-                scope.span.log_kv(
-                    key_values={
-                        "event": "error",
-                        "error.object": e,
+                scope.set_attribute(key="error", value=True)
+                scope.add_event(
+                    name="error",
+                    attributes={
+                        "error.object": str(e),
                         "error.stack": traceback.format_exc(),
-                    }
+                    },
                 )
                 logger.debug(f"Task: task '{self.func.__name__}' failed")
                 self._handle_failure(
                     error=e,
                     broker=broker,
                 )
-                scope.span.set_tag(key="state", value=self.state.value)
+                scope.set_attribute(key="state", value=self.state.value)
                 await self.store_result(
                     result=None,
                     error=e,

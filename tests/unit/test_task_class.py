@@ -1,12 +1,10 @@
 import asyncio
-from typing import Any, Callable, Dict, Generator
+from typing import Any, Callable, Dict
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import msgpack
 import pytest
-import pytest_asyncio
 
-from pragmatiq.broker.redis_broker import RedisBroker
 from pragmatiq.core.task import CPUTask, IOTask, Task
 from pragmatiq.enums import TaskState
 from pragmatiq.metrics.settings import (
@@ -17,23 +15,6 @@ from pragmatiq.metrics.settings import (
     TASK_STATE_RUNNING,
 )
 from pragmatiq.utils.serializers import serialize_args
-
-
-@pytest_asyncio.fixture(scope="function")
-async def mock_broker() -> Mock:
-    """Fixture providing a mocked RedisBroker instance."""
-    return Mock(spec=RedisBroker())
-
-
-# Mock global_tracer for tracing
-@pytest.fixture(autouse=True)
-def mock_global_tracer() -> Generator[MagicMock | AsyncMock, Any, None]:
-    """Fixture mocking the global_tracer for tracing operations."""
-    with patch("pragmatiq.core.task.global_tracer") as mock_tracer:
-        mock_span = MagicMock()
-        mock_span.start_active_span.return_value.__enter__.return_value = mock_span
-        mock_tracer.return_value = mock_span
-        yield mock_tracer
 
 
 # Helper functions for testing

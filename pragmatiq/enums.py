@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class TaskState(Enum):
-    """Enumeration of possible states for a task in the Pragmatiq system.
+    """Enumeration of possible states for a task in the PragmatiQ system.
 
     Defines the lifecycle states a task can be in, used for tracking and monitoring task execution.
 
