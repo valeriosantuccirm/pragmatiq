@@ -1,5 +1,8 @@
 from dataclasses import dataclass
+from types import NoneType
 from typing import Any, Generator, Tuple
+
+NoneType
 
 
 @dataclass
@@ -26,7 +29,14 @@ class PragmatiQConfig:
 
     cron_check_interval: int = 5
     default_timeout: int = 30
+    service_name: str = "pragmatiq"
+    # Redis
     dlq_name: str = "pragmatiq:queue:dlq"
+    queue_name: str = "pragmatiq:queue"
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    result_ttl: int = 3600
+    # Jaeger & Prometheus
     jaeger_auth: Tuple[str, str] | None = None
     jaeger_host: str | None = None
     jaeger_port: int | None = None
@@ -34,11 +44,6 @@ class PragmatiQConfig:
     prometheus_auth: Tuple[str, str] | None = None
     prometheus_host: str | None = None
     prometheus_port: int = 9090
-    queue_name: str = "pragmatiq:queue"
-    redis_host: str = "localhost"
-    redis_port: int = 6379
-    result_ttl: int = 3600
-    service_name: str = "pragmatiq"
 
     def __post_init__(self) -> None:
         """Validates attribute types after initialization.
@@ -46,23 +51,24 @@ class PragmatiQConfig:
         Raises:
             ValueError: If any attribute does not match type criteria.
         """
+
         for attr, type_ in self.__annotations__.items():
-            if attr in ("jaeger_auth", "prometheus_auth"):
-                tuple_or_none: Tuple[str, str] | None = getattr(self, attr)
-                if tuple_or_none and (
-                    len(tuple_or_none) != 2
-                    or not all(
-                        [isinstance(value, str) for value in getattr(self, attr)]
-                    )
-                ):
-                    raise ValueError(
-                        f"Attribute '{attr}' must be a tuple containing exactly two strings (username and password)"
-                    )
-            elif isinstance(getattr(self, attr), int) and getattr(self, attr) < 0:
-                raise ValueError(f"Attribute '{attr}' must be a positive integer")
+            if hasattr(type_, "__args__") and NoneType in type_.__args__:
+                if getattr(self, attr):
+                    if attr in ("jaeger_auth", "prometheus_auth"):
+                        tuple_or_none: Tuple[str, str] | None = getattr(self, attr)
+                        if tuple_or_none and (
+                            len(tuple_or_none) != 2
+                            or not all([isinstance(value, str) for value in getattr(self, attr)])
+                        ):
+                            raise ValueError(
+                                f"Attribute '{attr}' must be a tuple containing exactly two strings (username and password)"
+                            )
             else:
                 if not isinstance(getattr(self, attr), type_):
                     raise ValueError(f"Attribute '{attr}' must be of type '{type_}'")
+                elif isinstance(getattr(self, attr), int) and getattr(self, attr) < 0:
+                    raise ValueError(f"Attribute '{attr}' must be a positive integer")
 
     def __iter__(self) -> Generator[tuple[str, Any], Any, None]:
         for attr in self.__annotations__.keys():

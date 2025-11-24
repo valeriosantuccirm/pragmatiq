@@ -1,11 +1,11 @@
 import json
+import logging
 import traceback
 from types import TracebackType
 from typing import Any, Dict, Literal, Tuple, Type
 
 import aiohttp
 from aiohttp import BasicAuth, ClientSession
-from loguru import logger
 
 from pragmatiq.config import PragmatiQConfig
 
@@ -38,12 +38,8 @@ class _MonitorConfig:
         self.prometheus_port: int | None = prometheus_port
         self.jaeger_host: str | None = jaeger_host
         self.jaeger_port: int | None = jaeger_port
-        self.prometheus_auth: BasicAuth | None = (
-            BasicAuth(*prometheus_auth) if prometheus_auth else None
-        )
-        self.jaeger_auth: BasicAuth | None = (
-            BasicAuth(*jaeger_auth) if jaeger_auth else None
-        )
+        self.prometheus_auth: BasicAuth | None = BasicAuth(*prometheus_auth) if prometheus_auth else None
+        self.jaeger_auth: BasicAuth | None = BasicAuth(*jaeger_auth) if jaeger_auth else None
 
     @property
     def prometheus_base_url(self) -> str | None:
@@ -53,7 +49,7 @@ class _MonitorConfig:
             The base URL string if both host and port are configured, otherwise None.
         """
         if not self.prometheus_host or not self.prometheus_port:
-            return
+            return None
         return f"http://{self.prometheus_host}:{self.prometheus_port}"
 
     @property
@@ -64,7 +60,7 @@ class _MonitorConfig:
             str | None: The base URL string if both host and port are configured, otherwise None.
         """
         if not self.jaeger_host or not self.jaeger_port:
-            return
+            return None
         return f"http://{self.jaeger_host}:{self.jaeger_port}"
 
     def mapped_params(
@@ -100,6 +96,7 @@ class Monitor:
                 the service name, Prometheus, and Jaeger endpoints and authentication details.
                 Defaults to PragmatiQConfig().
         """
+        self.logger: logging.Logger = logging.getLogger(name=__name__)
         self.monitor_config = _MonitorConfig(
             service=config.service_name,
             prometheus_host=config.prometheus_host,
@@ -135,13 +132,13 @@ class Monitor:
         """
         try:
             if exc_type:
-                logger.opt(exception=exc_val).error(
+                self.logger.error(
                     f"Context manager exited with exception: {exc_type.__name__}: {str(exc_val)}",
-                    exc_info=(
-                        exc_type,
-                        exc_val,
-                        exc_tb,
-                    ),
+                    exc_info=exc_val,
+                    extra={
+                        "exc_type": exc_type,
+                        "exc_tb": exc_tb,
+                    },
                 )
         finally:
             if self.session:
@@ -186,7 +183,7 @@ class Monitor:
                 response.raise_for_status()
                 return await response.json()
         except Exception as e:
-            logger.error(f"Error: {e}. Traceback: {traceback.print_exc()}")
+            self.logger.error(f"Error: {e}. Traceback: {traceback.print_exc()}")
             raise e
 
     async def query(
@@ -344,9 +341,7 @@ class Monitor:
         """
         base_url, auth = self.monitor_config.mapped_params(client=client)
         params["service"] = self.monitor_config.service
-        api_endpoint = (
-            api_endpoint[1:] if api_endpoint.startswith("/") else api_endpoint
-        )
+        api_endpoint = api_endpoint[1:] if api_endpoint.startswith("/") else api_endpoint
         return await self.__request(
             method=method,
             url=f"{base_url}/{api_endpoint}",

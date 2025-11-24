@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 from asyncio import AbstractEventLoop
 from asyncio import Task as asyncioTask
@@ -18,7 +19,6 @@ from typing import (
 )
 
 import ray
-from loguru import logger
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import Tracer, get_tracer
@@ -157,6 +157,7 @@ class PragmatiQ:
         if self.__initialized:
             return
         self.__initialized = True
+        self.logger: logging.Logger = logging.getLogger(name=__name__)
         self.config: PragmatiQConfig = config or PragmatiQConfig()
         self.broker = RedisBroker(
             host=self.config.redis_host,
@@ -169,6 +170,8 @@ class PragmatiQ:
         self.event_manager = EventManager(task_queue=self.queue)
         self.loop: AbstractEventLoop = asyncio.get_event_loop()
         self.func_mapping: Dict[str, Callable[..., Any]] = {}
+
+        self.logger.info("PragmatiQ initialized with configs: %s")
 
     @classmethod
     def get_instance(cls) -> "PragmatiQ":
@@ -262,6 +265,14 @@ class PragmatiQ:
             coro=self._update_queue_length_task(),
         )
 
+        self.logger.info(
+            "PragmatiQ started: %s",
+            self.config,
+            self.broker,
+            self.queue,
+            self.event_manager,
+        )
+
     async def _shutdown(self) -> None:
         """Shut down the PragmatiQ queue and background tasks.
 
@@ -290,6 +301,8 @@ class PragmatiQ:
             except (asyncio.CancelledError, RedisError):
                 pass
 
+        self.logger.info("PragmatiQ stopped")
+
     async def _update_queue_length_task(self) -> None:
         """Periodically update the task queue length metric.
 
@@ -307,9 +320,7 @@ class PragmatiQ:
         priority: int = 1,
         timeout: int = 30,
         **kwargs: Any,
-    ) -> Callable[
-        [Callable[..., Any]], Callable[..., "CoroutineType[Any, Any, Dict[str, str]]"]
-    ]:
+    ) -> Callable[[Callable[..., Any]], Callable[..., "CoroutineType[Any, Any, Dict[str, str]]"]]:
         """Decorate a function to enqueue it as a task.
 
         Registers the function in the function mapping and returns a wrapper that enqueues it as a task
@@ -331,7 +342,10 @@ class PragmatiQ:
             func: Callable[..., R],
         ) -> Callable[..., "CoroutineType[Any, Any, Dict[str, str]]"]:
             self.func_mapping[func.__name__] = func
-            logger.debug(f"PragmatiQ: mapped func: {func.__name__}")
+            self.logger.debug(
+                f"Mapped func: {func.__name__}",
+                func,
+            )
 
             @wraps(wrapped=func)
             async def wrapper(*args: Any) -> Dict[str, str]:
@@ -345,21 +359,21 @@ class PragmatiQ:
                     **kwargs,
                 )
                 if self.tracer:
-                    with self.tracer.start_span(
-                        name=f"enqueue_{type_}_task.{func.__name__}"
-                    ) as scope:
-                        scope.set_attribute(key="priority", value=priority)
-                        scope.set_attribute(key="timeout", value=timeout)
-                        scope.set_attribute(key="function", value=func.__name__)
-                        await self.queue.enqueue(task=task)
-                        logger.debug(
-                            f"PragmatiQ: enqueued with tracer func: {func.__name__}"
+                    with self.tracer.start_span(name=f"enqueue_{type_}_task.{func.__name__}") as scope:
+                        scope.set_attributes(
+                            attributes={
+                                "priority": priority,
+                                "timeout": timeout,
+                                "func": func.__name__,
+                            }
                         )
+                        await self.queue.enqueue(task=task)
                 else:
                     await self.queue.enqueue(task=task)
-                    logger.debug(
-                        f"PragmatiQ: enqueued without tracer func: {func.__name__}"
-                    )
+                self.logger.info(
+                    f"Task enqueued: {func.__name__}",
+                    func,
+                )
                 return {
                     "message": f"{type_.upper()} task enqueued",
                     "task_id": task.task_id,

@@ -1,8 +1,8 @@
 import json
+import logging
 from datetime import datetime
 from typing import Any, Dict, Self, overload
 
-from loguru import logger
 from redis.asyncio import Redis
 
 from pragmatiq.broker.base import Broker
@@ -30,6 +30,7 @@ class RedisBroker(Broker):
         dlq_name: str = "pragmatiq:queue:dlq",
         result_ttl: int = 3600,
     ) -> None:
+        self.logger: logging.Logger = logging.getLogger(name=__name__)
         self.host: str = host
         self.port: int = port
         self.redis: Redis = Redis(
@@ -46,7 +47,10 @@ class RedisBroker(Broker):
         *,
         task: Task,
     ) -> None:
-        await self.redis.rpush(f"{self.queue_name}:{task.priority}", task.serialize())  # type: ignore[awaitable]
+        await self.redis.rpush(
+            f"{self.queue_name}:{task.priority}",
+            task.serialize(),  # type: ignore[awaitable]
+        )
 
     @overload
     async def rpush(
@@ -55,7 +59,10 @@ class RedisBroker(Broker):
         *,
         queue_key: str | None = None,
     ) -> None:
-        await self.redis.rpush(f"{queue_key}:{task.priority}", task.serialize())  # type: ignore[awaitable]
+        await self.redis.rpush(
+            f"{queue_key}:{task.priority}",
+            task.serialize(),  # type: ignore[awaitable]
+        )
 
     async def rpush(
         self,
@@ -64,11 +71,15 @@ class RedisBroker(Broker):
         queue_key: str | None = None,
     ) -> None:
         if queue_key:
-            await self.redis.rpush(f"{queue_key}:{task.priority}", task.serialize())  # type: ignore[awaitable]
-        await self.redis.rpush(f"{self.queue_name}:{task.priority}", task.serialize())  # type: ignore[awaitable]
-        logger.debug(
-            f"RedisBroker: pushed task '{task.func.__name__}' to {queue_key if queue_key else self.queue_name}"
+            await self.redis.rpush(
+                f"{queue_key}:{task.priority}",
+                task.serialize(),  # type: ignore[awaitable]
+            )
+        await self.redis.rpush(
+            f"{self.queue_name}:{task.priority}",
+            task.serialize(),  # type: ignore[awaitable]
         )
+        self.logger.info(f"Pushed task '{task.func.__name__}' to {queue_key if queue_key else self.queue_name}")
 
     async def close(self) -> None:
         await self.redis.close()
@@ -87,7 +98,6 @@ class RedisBroker(Broker):
         state: TaskState,
     ) -> None:
         """Store task result in Redis."""
-        logger.debug(f"RedisBroker: storing result of task ID: {task_id}")
         result_data: Dict[str, Any] = {
             "task_id": task_id,
             "status": state.value,
@@ -99,6 +109,10 @@ class RedisBroker(Broker):
             name=f"{self.queue_name}:result:{task_id}",
             time=self.result_ttl,
             value=json.dumps(result_data),
+        )
+        self.logger.info(
+            f"Stored result of task '{task_id}'",
+            result_data,
         )
 
     async def get_result(

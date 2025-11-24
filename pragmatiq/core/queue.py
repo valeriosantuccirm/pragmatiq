@@ -1,7 +1,6 @@
 import asyncio
+import logging
 from typing import Callable, Dict
-
-from loguru import logger
 
 from pragmatiq.broker.redis_broker import RedisBroker
 from pragmatiq.core.task import Task
@@ -28,6 +27,7 @@ class Queue:
             redis_port: Port number of the Redis server.
             queue_name: Unique name for the queue, used as a prefix for Redis keys.
         """
+        self.logger: logging.Logger = logging.getLogger(name=__name__)
         self.running: bool = True
         self.broker: RedisBroker = broker
 
@@ -43,11 +43,11 @@ class Queue:
         Args:
             task: The Task instance to enqueue.
         """
-        logger.debug(f"Queue: enqueuing task: {task.func.__name__}")
+
         TASKS_ENQUEUED.inc()
         TASK_STATE_PENDING.inc()
         await self.broker.rpush(task=task)
-        logger.debug("Queue: task enqueued")
+        self.logger.info(f"Task '{task.func.__name__}' enqueued")
         return task.task_id
 
     async def dequeue(
@@ -70,6 +70,10 @@ class Queue:
             task_data: bytes | None = await self.broker.lpop(priority=priority)
             if task_data:
                 TASKS_DEQUEUED.inc()
+                self.logger.info(
+                    "Task denqueued",
+                    task_data,
+                )
                 return Task.deserialize(
                     broker=self.broker,
                     data=task_data,
@@ -97,7 +101,6 @@ class Queue:
         Raises:
             Exception: Propagates any exception from task execution after logging and DLQ handling.
         """
-        logger.debug("Queue: running tasks")
         while self.running:
             task: Task | None = await self.dequeue(func_mapping=func_mapping)
             if task:
@@ -107,7 +110,7 @@ class Queue:
                         broker=self.broker,
                     )
                 except Exception as e:
-                    logger.error(f"Error running task: {e}")
+                    self.logger.error("Error running task", e)
                     await self.broker.rpush(
                         task=task,
                         queue_key=self.broker.dlq_name,

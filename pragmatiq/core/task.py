@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 import traceback
 from typing import TYPE_CHECKING, Any, Callable, Dict, Tuple
@@ -6,7 +7,6 @@ from uuid import uuid4
 
 import msgpack
 import ray
-from loguru import logger
 from opentelemetry.trace import Tracer, get_tracer
 from ray._private.worker import RemoteFunctionNoArgs
 
@@ -47,6 +47,7 @@ class Task:
             timeout: Maximum execution time in seconds, defaults to 30.
             cpu_bound: Whether the task is CPU-bound (True) or I/O-bound (False), defaults to False.
         """
+        self.logger: logging.Logger = logging.getLogger(name=__name__)
         self.func: Callable[..., Any] = func
         self.args: Tuple[Any, ...] = args
         self.priority: int = priority
@@ -96,7 +97,6 @@ class Task:
         Raises:
             Exception: Propagates any exception from task execution, after logging and handling failure.
         """
-        logger.debug("Task: running task...")
         with self.tracer.start_as_current_span(
             name=f"execute_task.{self.func.__name__}",
             attributes={"cpu_bound": self.cpu_bound},
@@ -106,7 +106,10 @@ class Task:
                 TASK_STATE_RUNNING.inc()
                 self._start_time = time.time()
 
-                logger.debug(f"Task: start execution of task: {self.func.__name__}")
+                self.logger.info(
+                    f"Start execution of task: {self.func.__name__}",
+                    self.func,
+                )
                 result: Any = await asyncio.wait_for(
                     fut=self._execute(loop=loop),
                     timeout=self.timeout,
@@ -120,9 +123,7 @@ class Task:
                     TASK_DURATION.observe(amount=duration)
 
                 self.state = TaskState.COMPLETED
-                logger.debug(
-                    f"Task: task completed; storing result of: {self.func.__name__}"
-                )
+                self.logger.info("Task completed")
                 await self.store_result(
                     result=result,
                     error=None,
@@ -142,7 +143,7 @@ class Task:
                         "error.stack": traceback.format_exc(),
                     },
                 )
-                logger.debug(f"Task: task '{self.func.__name__}' failed")
+                self.logger.info(f"Task execution of '{self.func.__name__}' failed")
                 self._handle_failure(
                     error=e,
                     broker=broker,
@@ -174,7 +175,7 @@ class Task:
         TASK_STATE_FAILED.inc()
         if isinstance(error, asyncio.TimeoutError):
             TASK_TIMEOUTS_TOTAL.inc()
-        logger.debug(f"Task: moving task '{self.func.__name__}' to DLQ")
+        self.logger.debug(f"Moving task '{self.func.__name__}' to DLQ")
         asyncio.create_task(
             coro=broker.rpush(
                 task=self,
@@ -222,14 +223,14 @@ class Task:
         Returns:
             Task: An instance of CPUTask or IOTask based on the serialized data.
         """
-        logger.debug("Task: deserializing task...")
+        logger: logging.Logger = logging.getLogger(name=__name__)
         unpacked: Dict[str, Any] = msgpack.unpackb(data)
         func: F = func_mapping[unpacked["func_name"]]
         args: Tuple[Any, ...] = deserialize_args(
             args=unpacked["args"],
             func_mapping=func_mapping,
         )
-        logger.debug(f"Task: deserialized: {unpacked}")
+        logger.debug(f"Task '{func.__name__}' deserialized: {unpacked}")
         if unpacked["cpu_bound"]:
             return CPUTask(
                 broker,
@@ -255,7 +256,6 @@ class Task:
         Returns:
             bytes | None: The serialized task data in bytes, or None if serialization fails.
         """
-        logger.debug(f"Task: serializing task: {self.func.__name__}")
         return msgpack.packb(
             {
                 "func_name": self.func.__name__,
@@ -295,7 +295,7 @@ class CPUTask(Task):
             cpu_bound=True,
             **kwargs,
         )
-        logger.debug(f"Task: CPU task to Ray remote: {self.func.__name__}")
+        self.logger.debug(f"CPU task to Ray remote: {self.func.__name__}")
         if not kwargs:
             self.remote_func: RemoteFunctionNoArgs[Any] = ray.remote(func)
         else:
@@ -309,17 +309,16 @@ class CPUTask(Task):
         if asyncio.iscoroutinefunction(func=self.func):
             raise ValueError("CPU tasks must be synchronous")
         try:
-            logger.debug(f"Task: executing Ray future: {self.func.__name__}")
+            self.logger.info(f"Executing Ray future: '{self.func.__name__}'")
             future: ray.ObjectRef[Any] = self.remote_func.remote(*self.args)
             result = await loop.run_in_executor(
                 None,
                 ray.get,  # This will be _execute_cpu_task
                 future,  # Args will include the original func and its args
             )
-            logger.debug("Task: CPU task executed. Returning result...")
             return result
         except Exception as e:
-            logger.error(f"Error type: {type(e)}. Error msg: {e}")
+            self.logger.error(f"Error type: {type(e)}. Error msg: {e}")
             raise e
 
 
@@ -370,8 +369,8 @@ class IOTask(Task):
             Exception: Propagates any exception raised during execution, after logging.
         """
         try:
-            logger.debug(f"Task: executing IO task: {self.func.__name__}")
+            self.logger.info(f"Executing IO task: '{self.func.__name__}'")
             return await self.func(*self.args)
         except Exception as e:
-            logger.error(f"Error type: {type(e)}. Error msg: {e}")
+            self.logger.error(f"Error type: {type(e)}. Error msg: {e}")
             raise e

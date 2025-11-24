@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from types import CoroutineType
 from typing import Any, Callable, Dict, List, Self, Type, TypeVar
 
@@ -64,6 +65,7 @@ class EventManager:
         Args:
             task_queue: The Queue instance to use for enqueuing tasks triggered by events.
         """
+        self.logger: logging.Logger = logging.getLogger(name=__name__)
         self._handlers: Dict[Type[Event], List[HandlerType]] = {}
         self._task_queue: Queue = task_queue
 
@@ -84,6 +86,10 @@ class EventManager:
         if event_type not in self._handlers:
             self._handlers[event_type] = []
         self._handlers[event_type].append(handler)
+        self.logger.info(
+            f"Registered {event_type} event",
+            handler,
+        )
 
     def dispatch(
         self,
@@ -100,6 +106,7 @@ class EventManager:
         handlers: List[HandlerType] = self._handlers.get(type(event), [])
         for handler in handlers:
             asyncio.create_task(coro=handler(event))
+            self.logger.info(msg=f"Dispatched: '{handler.__name__}'")
 
     def bind(
         self,
@@ -123,6 +130,10 @@ class EventManager:
                     event=event,
                 )
             ),
+        )
+        self.logger.info(
+            "Bound task to event",
+            task,
         )
 
     def _create_task(
