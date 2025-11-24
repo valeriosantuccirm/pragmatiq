@@ -79,7 +79,9 @@ class RedisBroker(Broker):
             f"{self.queue_name}:{task.priority}",
             task.serialize(),  # type: ignore[awaitable]
         )
-        self.logger.info(f"Pushed task '{task.func.__name__}' to {queue_key if queue_key else self.queue_name}")
+        self.logger.info(
+            f"Pushed task '{task.func.__name__}' to {queue_key if queue_key else self.queue_name}"
+        )
 
     async def close(self) -> None:
         await self.redis.close()

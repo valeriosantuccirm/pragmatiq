@@ -320,7 +320,9 @@ class PragmatiQ:
         priority: int = 1,
         timeout: int = 30,
         **kwargs: Any,
-    ) -> Callable[[Callable[..., Any]], Callable[..., "CoroutineType[Any, Any, Dict[str, str]]"]]:
+    ) -> Callable[
+        [Callable[..., Any]], Callable[..., "CoroutineType[Any, Any, Dict[str, str]]"]
+    ]:
         """Decorate a function to enqueue it as a task.
 
         Registers the function in the function mapping and returns a wrapper that enqueues it as a task
@@ -359,7 +361,9 @@ class PragmatiQ:
                     **kwargs,
                 )
                 if self.tracer:
-                    with self.tracer.start_span(name=f"enqueue_{type_}_task.{func.__name__}") as scope:
+                    with self.tracer.start_span(
+                        name=f"enqueue_{type_}_task.{func.__name__}"
+                    ) as scope:
                         scope.set_attributes(
                             attributes={
                                 "priority": priority,

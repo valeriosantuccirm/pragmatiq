@@ -43,7 +43,11 @@ def test_deserialize_args() -> None:
     func_mapping: Dict[str, Callable] = {"sample_func": sample_func}
 
     # Successful cases
-    assert deserialize_args(args=(1, "hello", 3.14), func_mapping=func_mapping) == (1, "hello", 3.14)
+    assert deserialize_args(args=(1, "hello", 3.14), func_mapping=func_mapping) == (
+        1,
+        "hello",
+        3.14,
+    )
     assert deserialize_args(
         args=(
             {
@@ -66,7 +70,10 @@ def test_deserialize_args() -> None:
     ) == (1, sample_func, "test")
 
     # Failure cases
-    with pytest.raises(expected_exception=ValueError, match="Function missing_func not found in mapping"):
+    with pytest.raises(
+        expected_exception=ValueError,
+        match="Function missing_func not found in mapping",
+    ):
         deserialize_args(
             args=(
                 {
@@ -77,10 +84,14 @@ def test_deserialize_args() -> None:
             func_mapping=func_mapping,
         )
 
-    with pytest.raises(expected_exception=ValueError, match="Function name None not found in mapping"):
+    with pytest.raises(
+        expected_exception=ValueError, match="Function name None not found in mapping"
+    ):
         deserialize_args(args=({"type": "function"},), func_mapping=func_mapping)
 
-    with pytest.raises(expected_exception=ValueError, match="Function name None not found in mapping"):
+    with pytest.raises(
+        expected_exception=ValueError, match="Function name None not found in mapping"
+    ):
         deserialize_args(
             args=(
                 {
@@ -99,7 +110,9 @@ def test_edge_cases() -> None:
     assert deserialize_args(args=(), func_mapping=func_mapping) == ()
 
     # Function with an empty mapping should raise an error
-    with pytest.raises(expected_exception=ValueError, match="Function sample_func not found in mapping"):
+    with pytest.raises(
+        expected_exception=ValueError, match="Function sample_func not found in mapping"
+    ):
         deserialize_args(
             args=(
                 {

@@ -59,7 +59,12 @@ class PragmatiQConfig:
                         tuple_or_none: Tuple[str, str] | None = getattr(self, attr)
                         if tuple_or_none and (
                             len(tuple_or_none) != 2
-                            or not all([isinstance(value, str) for value in getattr(self, attr)])
+                            or not all(
+                                [
+                                    isinstance(value, str)
+                                    for value in getattr(self, attr)
+                                ]
+                            )
                         ):
                             raise ValueError(
                                 f"Attribute '{attr}' must be a tuple containing exactly two strings (username and password)"
